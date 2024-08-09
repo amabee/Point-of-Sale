@@ -1,0 +1,1 @@
+export const AUTH_ENDPOINT = "http://localhost/pos_api/login-endpoint.php";
