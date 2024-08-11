@@ -3,12 +3,13 @@ import React, { use, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import axios from "axios";
 import { AUTH_ENDPOINT } from "./globals";
-
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
+  const router = useRouter();
   const login = async () => {
     try {
       setIsLoading(true);
@@ -21,12 +22,17 @@ const Login = () => {
       });
 
       if (response.status === 200) {
-        alert(JSON.stringify(response.data));
+        if (response.data.success) {
+          sessionStorage.setItem("user", JSON.stringify(response.data.success));
+          router.push("/admin/");
+        } else {
+          Swal.fire("Invalid Credentials:", response.error, "error");
+        }
       } else {
-        alert("Login failed with status:", response.status);
+        Swal.fire("Login failed with status:", response.status, "info");
       }
     } catch (error) {
-      alert("an error occured during the operation:", error);
+      Swal.fire("an error occured during the operation:", error, "error");
     } finally {
       setIsLoading(false);
     }

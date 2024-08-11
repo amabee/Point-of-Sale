@@ -12,9 +12,12 @@ import PerfectScrollbar from "perfect-scrollbar";
 import "../../public/styles/admin/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css";
 import Script from "next/script";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const Admin = () => {
   const [year, setYear] = useState("");
+  const [loggedInUser, setLoggedInUser] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
     const currentYear = new Date().getFullYear();
@@ -53,7 +56,23 @@ const Admin = () => {
     };
   }, []);
 
-  
+  useEffect(() => {
+    const checkUserLogin = () => {
+      const userLoggedIn = JSON.parse(sessionStorage.getItem("user"));
+
+      if (userLoggedIn) {
+        setLoggedInUser(userLoggedIn);
+      } else {
+        router.push("/");
+      }
+    };
+
+    checkUserLogin();
+  }, [router]);
+
+  if (!loggedInUser) {
+    return null;
+  }
 
   return (
     <body>
@@ -64,10 +83,13 @@ const Admin = () => {
       <Script src="/styles/admin/assets/vendor/libs/popper/popper.js"></Script>
       <Script src="/styles/admin/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.js"></Script>
       <Script src="/styles/admin/assets/vendor/js/menu.js"></Script>
-      <Script src="/styles/admin/assets/vendor/js/bootstrap.js"></Script>
+      <Script
+        src="/styles/admin/assets/vendor/js/bootstrap.js"
+        strategy="beforeInteractive"
+      ></Script>
 
       {/* ApexCharts JS */}
-      <Script src="/styles/admin/assets/vendor/libs/apex-charts/apexcharts.js"></Script>
+      <Script src="/styles/admin/assets/vendor/libs/apex-charts/apexcharts.js" strategy="afterInteractive"></Script>
 
       {/* Main JS */}
       <Script src="/styles/admin/assets/js/main.js"></Script>
@@ -118,7 +140,7 @@ const Admin = () => {
                   </li>
 
                   <li className="menu-item">
-                    <Link href="/admin" className="menu-link" passHref>
+                    <Link href="admin/products" className="menu-link" passHref>
                       <div className="text-truncate" data-i18n="Analytics">
                         Products
                       </div>
@@ -225,13 +247,25 @@ const Admin = () => {
                       href="javascript:void(0);"
                       data-bs-toggle="dropdown"
                     >
-                      <div className="avatar avatar-online">
-                        <img
-                          src="../assets/img/avatars/1.png"
-                          alt
-                          className="w-px-40 h-auto rounded-circle"
-                        />
-                      </div>
+                      {loggedInUser ? (
+                        <div className="avatar avatar-online">
+                          <img
+                            src={
+                              "https://localhost/pos_api" + loggedInUser.image
+                            }
+                            alt
+                            className="w-px-40 h-auto rounded-circle"
+                          />
+                        </div>
+                      ) : (
+                        <div className="avatar avatar-online">
+                          <img
+                            src=""
+                            alt="?"
+                            className="w-px-40 h-auto rounded-circle"
+                          />
+                        </div>
+                      )}
                     </a>
                     <ul className="dropdown-menu dropdown-menu-end">
                       <li>
@@ -311,9 +345,14 @@ const Admin = () => {
                       <div className="d-flex align-items-start row">
                         <div className="col-sm-7">
                           <div className="card-body">
-                            <h5 className="card-title text-primary mb-3">
-                              Welcome back <b> John</b>! 🎉
-                            </h5>
+                            {loggedInUser ? (
+                              <h5 className="card-title text-primary mb-3">
+                                Welcome back <b>{loggedInUser.username}</b>! 🎉
+                              </h5>
+                            ) : (
+                              <h5>No User</h5>
+                            )}
+
                             <p className="mb-6">
                               You have done 72% more sales today.
                               <br />
@@ -434,7 +473,7 @@ const Admin = () => {
                               </div>
                             </div>
                             <p className="mb-1">Sales</p>
-                            <h4 className="card-title mb-3">$4,679</h4>
+                            <h4 className="card-title mb-3">₱0.00</h4>
                             <small className="text-success fw-medium">
                               <i className="bx bx-up-arrow-alt"></i> +28.42%
                             </small>
@@ -618,7 +657,7 @@ const Admin = () => {
                               </div>
                             </div>
                             <p className="mb-1">Payments</p>
-                            <h4 className="card-title mb-3">$2,456</h4>
+                            <h4 className="card-title mb-3">₱0.00</h4>
                             <small className="text-danger fw-medium">
                               <i className="bx bx-down-arrow-alt"></i> -14.82%
                             </small>
@@ -667,7 +706,7 @@ const Admin = () => {
                               </div>
                             </div>
                             <p className="mb-1">Transactions</p>
-                            <h4 className="card-title mb-3">$14,857</h4>
+                            <h4 className="card-title mb-3">₱0.00</h4>
                             <small className="text-success fw-medium">
                               <i className="bx bx-up-arrow-alt"></i> +28.14%
                             </small>
@@ -827,7 +866,7 @@ const Admin = () => {
                   {/* <!--/ Order Statistics --> */}
 
                   {/* <!-- Expense Overview --> */}
-                  <div className="col-md-6 col-lg-4 order-1 mb-6">
+                  {/* <div className="col-md-6 col-lg-4 order-1 mb-6">
                     <div className="card h-100">
                       <div className="card-header nav-align-top">
                         <ul className="nav nav-pills" role="tablist">
@@ -903,7 +942,7 @@ const Admin = () => {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </div> */}
                   {/* <!--/ Expense Overview -->
 
                 <!-- Transactions --> */}
