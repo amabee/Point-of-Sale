@@ -10,13 +10,17 @@
   },
   "dependencies": {
     "@zxing/library": "^0.21.2",
+    "apexcharts": "^3.52.0",
     "axios": "^1.7.3",
     "bootstrap": "^5.3.3",
-    "next": "14.2.5",
+    "next": "^14.2.5",
+    "perfect-scrollbar": "^1.5.5",
     "react": "^18",
+    "react-apexcharts": "^1.4.1",
     "react-bootstrap": "^2.10.4",
     "react-dom": "^18",
-    "react-webcam": "^7.2.0"
+    "react-webcam": "^7.2.0",
+    "resolve-url-loader": "^5.0.0"
   },
   "devDependencies": {
     "eslint": "^8",
