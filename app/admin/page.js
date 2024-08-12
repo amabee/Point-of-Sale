@@ -90,7 +90,10 @@ const Admin = () => {
       ></Script>
 
       {/* ApexCharts JS */}
-      <Script src="/styles/admin/assets/vendor/libs/apex-charts/apexcharts.js" strategy="afterInteractive"></Script>
+      <Script
+        src="/styles/admin/assets/vendor/libs/apex-charts/apexcharts.js"
+        strategy="beforeInteractive"
+      ></Script>
 
       {/* Main JS */}
       <Script src="/styles/admin/assets/js/main.js"></Script>
@@ -150,8 +153,8 @@ const Admin = () => {
 
                   <li className="menu-item">
                     <a
-                      href="app-academy-dashboard.html"
-                      target="_blank"
+                      href="/admin/cashier"
+                      passHref
                       className="menu-link"
                     >
                       <div className="text-truncate" data-i18n="Academy">
@@ -275,7 +278,9 @@ const Admin = () => {
                             <div className="flex-shrink-0 me-3">
                               <div className="avatar avatar-online">
                                 <img
-                                  src={ADMIN_IMAGE_ENDPOINT + loggedInUser.image}
+                                  src={
+                                    ADMIN_IMAGE_ENDPOINT + loggedInUser.image
+                                  }
                                   alt
                                   className="w-px-40 h-auto rounded-circle"
                                 />

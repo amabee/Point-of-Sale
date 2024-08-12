@@ -17,11 +17,15 @@ import Swal from "sweetalert2";
 import { ADMIN_ENDPOINT, ADMIN_IMAGE_ENDPOINT } from "@/app/globals";
 import axios from "axios";
 
+import UpdateCashierModal from "../modals/updateCashierModal";
+
 const Cashier = () => {
   const [loggedInUser, setLoggedInUser] = useState(null);
   const [cashiers, setCashiers] = useState([]);
   const [showAddCashierModal, setShowAddCashierModal] = useState(false);
-
+  const [showUpdateCashierModal, setShowUpdateCashierModal] = useState(false);
+  const [cashier, setCashier] = useState(null);
+  const [id, setID] = useState("");
   const [firstname, setFirstname] = useState("");
   const [lastname, setLastname] = useState("");
   const [username, setUsername] = useState("");
@@ -31,6 +35,18 @@ const Cashier = () => {
 
   const handleOpenAddCashierModal = () => setShowAddCashierModal(true);
   const handleCloseAddCashierModal = () => setShowAddCashierModal(false);
+  const handleOpenUpdateCashierModal = (cashier) => {
+    setCashier(cashier);
+    setID(cashier.id || "");
+    setFirstname(cashier.firstname || "");
+    setLastname(cashier.lastname || "");
+    setUsername(cashier.username || "");
+    setPassword(cashier.password || "");
+    setImage(cashier.image || null);
+    setShowUpdateCashierModal(true);
+  };
+
+  const handleCloseUpdateCashierModal = () => setShowUpdateCashierModal(false);
 
   const getAllCashiers = async () => {
     try {
@@ -91,6 +107,74 @@ const Cashier = () => {
     }
   };
 
+  const updateCashierStatus = async (id) => {
+    const formData = new FormData();
+    formData.append("operation", "deactivateCashier");
+    formData.append(
+      "json",
+      JSON.stringify({
+        id: id,
+      })
+    );
+    try {
+      const res = await axios({
+        url: ADMIN_ENDPOINT,
+        method: "POST",
+        data: formData,
+      });
+
+      if (res.status === 200) {
+        if (res.data !== null && res.data.success) {
+          Swal.fire("Successful", res.data.success, "success");
+          getAllCashiers();
+        } else {
+          Swal.fire("Error", res.data.error, "error");
+        }
+      }
+    } catch (error) {
+      Swal.fire("Exception Error", error, "error");
+    }
+  };
+
+  const updateCashierInfo = async () => {
+    const formData = new FormData();
+    formData.append("operation", "updateCashier");
+    formData.append(
+      "json",
+      JSON.stringify({
+        firstname: firstname,
+        lastname: lastname,
+        username: username,
+        password: password,
+        id: id,
+      })
+    );
+    formData.append("image", image);
+
+    try {
+      const res = await axios({
+        url: ADMIN_ENDPOINT,
+        method: "POST",
+        data: formData,
+      });
+
+      if (res.status === 200) {
+        if (res.data !== null && res.data.success) {
+          handleCloseUpdateCashierModal();
+          Swal.fire("Success", res.data.success, "success");
+        } else {
+          handleCloseUpdateCashierModal();
+          Swal.fire("Error", res.data.error, "error");
+          getAllCashiers();
+        }
+      }else{
+        Swal.fire("Status Error", res.status, "error");
+      }
+    } catch (error) {
+      Swal.fire("Exception Error", error, "error");
+    }
+  };
+
   useEffect(() => {
     getAllCashiers();
   }, []);
@@ -119,7 +203,7 @@ const Cashier = () => {
       <Script src="/styles/admin/assets/vendor/libs/popper/popper.js"></Script>
       <Script src="/styles/admin/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.js"></Script>
       <Script src="/styles/admin/assets/vendor/js/menu.js"></Script>
-      <Script src="/styles/admin/assets/vendor/js/bootstrap.js"></Script>
+      <Script src="/styles/admin/assets/vendor/js/bootstrap.js" strategy="afterInteractive"></Script>
 
       <div className="layout-wrapper layout-content-navbar">
         <div className="layout-container">
@@ -375,6 +459,7 @@ const Cashier = () => {
                           <th>Username</th>
                           <th>Image</th>
                           <th>Role</th>
+                          <th>Status</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -406,17 +491,32 @@ const Cashier = () => {
 
                               <td>{cashier.role}</td>
                               <td>
+                                {cashier.status === "active" ? (
+                                  <span class="badge bg-label-info me-1">
+                                    {cashier.status}
+                                  </span>
+                                ) : (
+                                  <span class="badge bg-label-danger me-1">
+                                    {cashier.status}
+                                  </span>
+                                )}
+                              </td>
+                              <td>
                                 <button
                                   type="button"
                                   className="btn btn-info me-2"
-                                  // onClick={() => handleOpenModal(product)}
+                                  onClick={() =>
+                                    handleOpenUpdateCashierModal(cashier)
+                                  }
                                 >
                                   <i className="bx bx-edit-alt"></i>
                                 </button>
                                 <button
                                   type="button"
                                   className="btn btn-danger"
-                                  // onClick={() => removeProduct(product.barcode)}
+                                  onClick={() =>
+                                    updateCashierStatus(cashier.id)
+                                  }
                                 >
                                   <i className="bx bx-trash"></i>
                                 </button>
@@ -531,22 +631,26 @@ const Cashier = () => {
                     </div>
                   </div>
                 )}
-                {/* {showUpdateModal && (
-                  <UpdateModal
-                    show={showUpdateModal}
-                    handleClose={handleCloseUpdateModal}
-                    product={product}
-                    barcode={barcode}
-                    name={name}
-                    price={price}
-                    stock={stock}
-                    setBarCode={setBarCode}
-                    setName={setName}
-                    setPrice={setPrice}
-                    setStock={setStock}
-                    handleUpdateProduct={updateProduct}
+                {showUpdateCashierModal && (
+                  <UpdateCashierModal
+                    show={showUpdateCashierModal}
+                    handleClose={handleCloseUpdateCashierModal}
+                    cashier={cashier}
+                    id={id}
+                    firstname={firstname}
+                    lastname={lastname}
+                    username={username}
+                    password={password}
+                    image={image}
+                    setID={setID}
+                    setFirstname={setFirstname}
+                    setLastname={setLastname}
+                    setUsername={setUsername}
+                    setPassword={setPassword}
+                    setImage={setImage}
+                    handleUpdateCashier={updateCashierInfo}
                   />
-                )} */}
+                )}
                 <hr class="my-12" />
               </div>
 
