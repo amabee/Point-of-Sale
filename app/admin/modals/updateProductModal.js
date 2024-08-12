@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -6,6 +5,10 @@ const UpdateModal = ({
   show,
   handleClose,
   product,
+  barcode,
+  name,
+  price,
+  stock,
   setBarCode,
   setName,
   setPrice,
@@ -15,10 +18,10 @@ const UpdateModal = ({
 
   useEffect(() => {
     if (product) {
-      setBarCode(product.barcode);
-      setName(product.name);
-      setPrice(product.price);
-      setStock(product.stock_quantity);
+      setBarCode(product.barcode || '');
+      setName(product.name || '');
+      setPrice(product.price || 0.0);
+      setStock(product.stock_quantity || 0);
     }
   }, [product, setBarCode, setName, setPrice, setStock]);
 
@@ -50,7 +53,7 @@ const UpdateModal = ({
                   type="text"
                   className="form-control"
                   id="barcode"
-                  value={product?.barcode || ''}
+                  value={barcode}
                   onChange={(e) => setBarCode(e.target.value)}
                 />
               </div>
@@ -62,7 +65,7 @@ const UpdateModal = ({
                   type="text"
                   className="form-control"
                   id="name"
-                  value={product?.name || ''}
+                  value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
@@ -74,7 +77,7 @@ const UpdateModal = ({
                   type="number"
                   className="form-control"
                   id="price"
-                  value={product?.price || ''}
+                  value={price}
                   onChange={(e) => setPrice(e.target.value)}
                 />
               </div>
@@ -86,7 +89,7 @@ const UpdateModal = ({
                   type="number"
                   className="form-control"
                   id="stock"
-                  value={product?.stock_quantity || ''}
+                  value={stock}
                   onChange={(e) => setStock(e.target.value)}
                 />
               </div>

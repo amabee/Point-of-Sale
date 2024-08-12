@@ -9,68 +9,90 @@ import "../../../public/styles/admin/assets/css/demo.css";
 import "../../../public/styles/admin/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css";
 import "../../../public/styles/admin/assets/vendor/libs/apex-charts/apex-charts.css";
 import "../../../public/styles/admin/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css";
-import PerfectScrollbar from "perfect-scrollbar";
+
 import Script from "next/script";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
-import { ADMIN_ENDPOINT } from "@/app/globals";
+import { ADMIN_ENDPOINT, ADMIN_IMAGE_ENDPOINT } from "@/app/globals";
 import axios from "axios";
-import UpdateModal from "../modals/updateProductModal.js";
 
-const Products = () => {
+const Cashier = () => {
   const [loggedInUser, setLoggedInUser] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [product, setProduct] = useState(null);
-  const [barcode, setBarCode] = useState("");
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState(0.0);
-  const [stock, setStock] = useState(0);
+  const [cashiers, setCashiers] = useState([]);
+  const [showAddCashierModal, setShowAddCashierModal] = useState(false);
 
-  const handleShowModal = () => setShowModal(true);
-  const handleCloseModal = () => setShowModal(false);
-  const handleShowUpdateModal = () => setShowUpdateModal(true);
-  const handleCloseUpdateModal = () => setShowUpdateModal(false);
+  const [firstname, setFirstname] = useState("");
+  const [lastname, setLastname] = useState("");
+  const [username, setUsername] = useState("");
+  const [image, setImage] = useState(null);
+  const [password, setPassword] = useState("");
   const router = useRouter();
 
-  const handleOpenModal = (product) => {
-    setProduct(product);
-    setBarCode(product.barcode || "");
-    setName(product.name || "");
-    setPrice(product.price || 0.0);
-    setStock(product.stock_quantity || 0);
-    setShowUpdateModal(true);
-  };
+  const handleOpenAddCashierModal = () => setShowAddCashierModal(true);
+  const handleCloseAddCashierModal = () => setShowAddCashierModal(false);
 
-  const getAllItems = async () => {
+  const getAllCashiers = async () => {
     try {
       const res = await axios.get(ADMIN_ENDPOINT, {
         params: {
-          operation: "getAllItem",
+          operation: "getAllCashier",
           json: "",
         },
       });
-      if (res.status == 200) {
-        if (res.data && res.data !== null) {
-          console.log(res.data);
-          setProducts(res.data);
+
+      if (res.status === 200) {
+        if (res.data !== null && res.data.success) {
+          setCashiers(res.data.success);
+          console.log(res.data.success);
         } else {
-          console.log("Can't retrieve Products: " + res.data);
+          Swal.fire("Error retrieving cashiers", res.data.error, "error");
+        }
+      } else {
+        Swal.fire("Something went wrong", res.data.error, "error");
+      }
+    } catch (error) {
+      Swal.fire("Exception Error", error, "error");
+    }
+  };
+
+  const addCashier = async () => {
+    const formData = new FormData();
+    formData.append("operation", "addCashier");
+    formData.append(
+      "json",
+      JSON.stringify({
+        firstname: firstname,
+        lastname: lastname,
+        username: username,
+        password: password,
+      })
+    );
+    formData.append("image", image);
+
+    try {
+      const res = await axios({
+        url: ADMIN_ENDPOINT,
+        method: "POST",
+        data: formData,
+      });
+
+      if (res.status === 200) {
+        if (res.data !== null && res.data.success) {
+          handleCloseAddCashierModal();
+          Swal.fire("Success", res.data.success, "success");
+          getAllCashiers();
+        } else {
+          Swal.fire("Something went wrong", res.data.success, "error");
         }
       }
     } catch (error) {
-      Swal.fire(
-        "Exception Error",
-        "Something went wrong retrieving the items " + error,
-        "error"
-      );
+      Swal.fire("Exception Error", error, "error");
     }
   };
 
   useEffect(() => {
-    getAllItems();
+    getAllCashiers();
   }, []);
 
   useEffect(() => {
@@ -80,111 +102,14 @@ const Products = () => {
       if (userLoggedIn) {
         setLoggedInUser(userLoggedIn);
       } else {
-        router.push("/");
+        // router.push("/");
+        console.log(userLoggedIn);
       }
     };
 
     checkUserLogin();
   }, [router]);
 
-  const insertProduct = async () => {
-    const formData = new FormData();
-    formData.append("operation", "insertProduct");
-    formData.append(
-      "json",
-      JSON.stringify({
-        barcode: barcode,
-        name: name,
-        price: price,
-        stock: stock,
-      })
-    );
-    try {
-      const res = await axios({
-        url: ADMIN_ENDPOINT,
-        method: "POST",
-        data: formData,
-      });
-
-      if (res.status === 200) {
-        if (res.data !== null && res.data.success) {
-          setBarCode("");
-          setName("");
-          setPrice(0.0);
-          setStock(0);
-          handleCloseModal();
-          Swal.fire("Success", res.data.success, "success");
-        } else {
-          Swal.fire("Error", res.data.error, "error");
-        }
-      } else {
-        Swal.fire("Something went wrong ", res.status, "error");
-      }
-    } catch (error) {
-      Swal.fire("Exception Error", error, "error");
-    }
-  };
-
-  const removeProduct = async (barcode) => {
-    const formData = new FormData();
-    formData.append("operation", "deleteProduct");
-    formData.append("json", JSON.stringify({ barcode: barcode }));
-    try {
-      const res = await axios({
-        url: ADMIN_ENDPOINT,
-        method: "POST",
-        data: formData,
-      });
-
-      if (res.status === 200) {
-        if (res.data !== null && res.data.success) {
-          Swal.fire("Success", res.data.success, "success");
-        } else {
-          Swal.fire("Error", res.data.error, "error");
-        }
-      } else {
-        Swal.fire("Status Error", res.data.error, "error");
-      }
-    } catch (error) {
-      Swal.fire("Exception Error", res.data.error, "error");
-    }
-  };
-
-  const updateProduct = async () => {
-    const updateFormData = new FormData();
-    updateFormData.append("operation", "updateProduct");
-    updateFormData.append(
-      "json",
-      JSON.stringify({
-        barcode: barcode,
-        name: name,
-        price: price,
-        stock: stock,
-      })
-    );
-
-    const res = await axios({
-      url: ADMIN_ENDPOINT,
-      method: "POST",
-      data: updateFormData,
-    });
-
-    if (res.status === 200) {
-      if (res.data !== null && res.data.success) {
-        handleCloseUpdateModal();
-        Swal.fire("Success", res.data.success, "success");
-        getAllItems();
-      } else {
-        Swal.fire("Error", res.data.error, "error");
-      }
-    } else {
-      Swal.fire("Exception Error", res.data.error, "error");
-    }
-  };
-
-  if (!loggedInUser) {
-    return null;
-  }
   return (
     <body>
       <Script src="/styles/admin/assets/vendor/js/helpers.js"></Script>
@@ -238,16 +163,16 @@ const Products = () => {
                     </Link>
                   </li>
 
-                  <li className="menu-item active">
-                    <Link href="#" className="menu-link" passHref>
+                  <li className="menu-item ">
+                    <Link href="/admin/products" className="menu-link" passHref>
                       <div className="text-truncate" data-i18n="Analytics">
                         Products
                       </div>
                     </Link>
                   </li>
 
-                  <li className="menu-item">
-                    <Link href="/admin/cashier" passHref className="menu-link">
+                  <li className="menu-item active">
+                    <Link href="#" passHref className="menu-link">
                       <div className="text-truncate" data-i18n="Academy">
                         Cashiers
                       </div>
@@ -342,9 +267,7 @@ const Products = () => {
                       {loggedInUser ? (
                         <div className="avatar avatar-online">
                           <img
-                            src={
-                              "https://localhost/pos_api" + loggedInUser.image
-                            }
+                            src={ADMIN_IMAGE_ENDPOINT + loggedInUser.image}
                             alt
                             className="w-px-40 h-auto rounded-circle"
                           />
@@ -433,12 +356,12 @@ const Products = () => {
                 <hr class="my-12" />
                 <div class="card">
                   <div className="col d-flex align-items-center">
-                    <h5 className="card-header">Products Table</h5>
+                    <h5 className="card-header">Cashier Table</h5>
                     <button
                       className="btn btn-primary ms-auto me-5"
-                      onClick={handleShowModal}
+                      onClick={handleOpenAddCashierModal}
                     >
-                      + Add Item
+                      + Add Cashier
                     </button>
                   </div>
 
@@ -446,35 +369,54 @@ const Products = () => {
                     <table class="table table-borderless">
                       <thead>
                         <tr>
-                          <th>Barcode</th>
-                          <th>Product Name</th>
-                          <th>Product Price</th>
-                          <th>Stock</th>
-                          <th>Added At</th>
+                          <th>ID</th>
+                          <th>Firstname</th>
+                          <th>Lastname</th>
+                          <th>Username</th>
+                          <th>Image</th>
+                          <th>Role</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {products.length > 0 ? (
-                          products.map((product) => (
-                            <tr key={product.id}>
-                              <td>{product.barcode}</td>
-                              <td>{product.name}</td>
-                              <td>{product.price}</td>
-                              <td>{product.stock_quantity}</td>
-                              <td>{product.created_at}</td>
+                        {cashiers.length > 0 ? (
+                          cashiers.map((cashier) => (
+                            <tr key={cashier.id}>
+                              <td>{cashier.id}</td>
+                              <td>{cashier.firstname}</td>
+                              <td>{cashier.lastname}</td>
+                              <td>{cashier.username}</td>
+                              <td>
+                                <ul class="list-unstyled m-0 avatar-group d-flex align-items-center">
+                                  <li
+                                    data-bs-toggle="tooltip"
+                                    data-popup="tooltip-custom"
+                                    data-bs-placement="top"
+                                    class="avatar avatar-md pull-up"
+                                    title="Lilian Fuller"
+                                  >
+                                    <img
+                                      src={ADMIN_IMAGE_ENDPOINT + cashier.image}
+                                      alt="Avatar"
+                                      class="rounded-circle fluid"
+                                    />
+                                  </li>
+                                </ul>
+                              </td>
+
+                              <td>{cashier.role}</td>
                               <td>
                                 <button
                                   type="button"
                                   className="btn btn-info me-2"
-                                  onClick={() => handleOpenModal(product)}
+                                  // onClick={() => handleOpenModal(product)}
                                 >
                                   <i className="bx bx-edit-alt"></i>
                                 </button>
                                 <button
                                   type="button"
                                   className="btn btn-danger"
-                                  onClick={() => removeProduct(product.barcode)}
+                                  // onClick={() => removeProduct(product.barcode)}
                                 >
                                   <i className="bx bx-trash"></i>
                                 </button>
@@ -483,74 +425,88 @@ const Products = () => {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="5">No products available.</td>
+                            <td colSpan="5">No cashiers available.</td>
                           </tr>
                         )}
                       </tbody>
                     </table>
                   </div>
                 </div>
-                {showModal && (
+                {showAddCashierModal && (
                   <div className="modal show d-block" tabIndex="-1">
                     <div className="modal-dialog">
                       <div className="modal-content">
                         <div className="modal-header">
-                          <h5 className="modal-title">Add New Product</h5>
+                          <h5 className="modal-title">Add New Cashier</h5>
                           <button
                             type="button"
                             className="btn-close"
-                            onClick={handleCloseModal}
+                            onClick={handleCloseAddCashierModal}
                           ></button>
                         </div>
                         <div className="modal-body">
-                          {/* Form for adding new product */}
-                          <form>
+                          <form enctype="multipart/form-data">
                             <div className="mb-3">
-                              <label htmlFor="barcode" className="form-label">
-                                Barcode
+                              <label htmlFor="firstname" className="form-label">
+                                Firstname
                               </label>
                               <input
                                 type="text"
                                 className="form-control"
-                                id="barcode"
-                                value={barcode}
-                                onChange={(e) => setBarCode(e.target.value)}
+                                id="firstname"
+                                value={firstname}
+                                onChange={(e) => setFirstname(e.target.value)}
                               />
                             </div>
+
                             <div className="mb-3">
-                              <label htmlFor="name" className="form-label">
-                                Product Name
+                              <label htmlFor="lastname" className="form-label">
+                                Lastname
                               </label>
                               <input
                                 type="text"
                                 className="form-control"
-                                id="name"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                id="lastname"
+                                value={lastname}
+                                onChange={(e) => setLastname(e.target.value)}
                               />
                             </div>
+
                             <div className="mb-3">
-                              <label htmlFor="price" className="form-label">
-                                Price
+                              <label htmlFor="username" className="form-label">
+                                Username
                               </label>
                               <input
-                                type="number"
+                                type="text"
                                 className="form-control"
-                                id="price"
-                                value={price}
-                                onChange={(e) => setPrice(e.target.value)}
+                                id="username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
                               />
                             </div>
+
                             <div className="mb-3">
-                              <label htmlFor="stock" className="form-label">
-                                Stock Quantity
+                              <label htmlFor="password" className="form-label">
+                                Password
                               </label>
                               <input
-                                type="number"
+                                type="password"
                                 className="form-control"
-                                id="stock"
-                                value={stock}
-                                onChange={(e) => setStock(e.target.value)}
+                                id="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                              />
+                            </div>
+
+                            <div className="mb-3">
+                              <label htmlFor="image" className="form-label">
+                                Image
+                              </label>
+                              <input
+                                type="file"
+                                className="form-control"
+                                id="image"
+                                onChange={(e) => setImage(e.target.files[0])}
                               />
                             </div>
                           </form>
@@ -559,23 +515,23 @@ const Products = () => {
                           <button
                             type="button"
                             className="btn btn-secondary"
-                            onClick={handleCloseModal}
+                            onClick={handleCloseAddCashierModal}
                           >
                             Close
                           </button>
                           <button
                             type="button"
                             className="btn btn-primary"
-                            onClick={insertProduct}
+                            onClick={addCashier}
                           >
-                            Save Product
+                            Save Cashier Info
                           </button>
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
-                {showUpdateModal && (
+                {/* {showUpdateModal && (
                   <UpdateModal
                     show={showUpdateModal}
                     handleClose={handleCloseUpdateModal}
@@ -590,7 +546,7 @@ const Products = () => {
                     setStock={setStock}
                     handleUpdateProduct={updateProduct}
                   />
-                )}
+                )} */}
                 <hr class="my-12" />
               </div>
 
@@ -625,4 +581,4 @@ const Products = () => {
   );
 };
 
-export default Products;
+export default Cashier;

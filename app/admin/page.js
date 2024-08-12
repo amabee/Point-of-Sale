@@ -13,6 +13,7 @@ import "../../public/styles/admin/assets/vendor/libs/perfect-scrollbar/perfect-s
 import Script from "next/script";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ADMIN_IMAGE_ENDPOINT } from "../globals";
 
 const Admin = () => {
   const [year, setYear] = useState("");
@@ -274,14 +275,14 @@ const Admin = () => {
                             <div className="flex-shrink-0 me-3">
                               <div className="avatar avatar-online">
                                 <img
-                                  src="../assets/img/avatars/1.png"
+                                  src={ADMIN_IMAGE_ENDPOINT + loggedInUser.image}
                                   alt
                                   className="w-px-40 h-auto rounded-circle"
                                 />
                               </div>
                             </div>
                             <div className="flex-grow-1">
-                              <h6 className="mb-0">John Doe</h6>
+                              <h6 className="mb-0">{loggedInUser.username}</h6>
                               <small className="text-muted">Admin</small>
                             </div>
                           </div>
