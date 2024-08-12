@@ -117,6 +117,7 @@ const Pos2 = () => {
         "json",
         JSON.stringify({
           customer_id: cuid,
+          cashier_id: currentUser.id,
           items: items.map((item) => ({
             product_id: item.id,
             quantity: item.quantity,
@@ -149,28 +150,29 @@ const Pos2 = () => {
   };
 
   const fetchHeldItems = async () => {
+    const data = JSON.parse(sessionStorage.getItem("user"));
+    console.log(data);
+
     try {
       const res = await axios.get(STORE_ENDPOINT, {
         params: {
           operation: "getHoldItems",
-          json: "",
+          json: JSON.stringify({
+            cashier_id: data.id,
+          }),
         },
       });
 
       if (res.data !== null && res.data.success) {
         setHeldTransactions([res.data.success]);
-        //console.log(res.data);
-      } else {
         console.log(res.data);
+      } else {
+        console.log("No data or error in response:", res.data);
       }
     } catch (error) {
-      console.log(error);
+      console.error("Error fetching held items:", error);
     }
   };
-
-  useEffect(() => {
-    fetchHeldItems();
-  }, []);
 
   const handleCustomerInput = (event) => {
     setCustomerID(event.target.value);
@@ -218,7 +220,7 @@ const Pos2 = () => {
         if (response.data && response.data.success) {
           setRetrievedIDs(response.data.success);
           setMsg("");
-          console.log(response.data.success);
+          //console.log(response.data.success);
         } else {
           setRetrievedIDs([]);
           setMsg("No Data");
@@ -413,6 +415,10 @@ const Pos2 = () => {
       setLoading(false);
     }, 500);
   }, [router]);
+
+  useEffect(() => {
+    fetchHeldItems();
+  }, []);
 
   useEffect(() => {
     const total = orders.reduce((acc, order) => acc + order.amount, 0);
