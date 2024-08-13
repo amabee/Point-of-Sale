@@ -1,5 +1,5 @@
 "use client";
-import React, { use, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import axios from "axios";
 import { AUTH_ENDPOINT } from "./globals";
@@ -23,8 +23,19 @@ const Login = () => {
 
       if (response.status === 200) {
         if (response.data.success) {
-          sessionStorage.setItem("user", JSON.stringify(response.data.success));
-          router.push("/admin/");
+          const user = response.data.success;
+          const userRole = user.role;
+          sessionStorage.setItem("user", JSON.stringify(user));
+
+          if (userRole === "admin") {
+            router.push("/admin/");
+            console.log(userRole);
+          } else if (userRole === "cashier") {
+            router.push("/cashier/");
+            console.log(userRole);
+          } else {
+            // Handle other roles or cases
+          }
         } else {
           Swal.fire("Invalid Credentials:", response.error, "error");
         }
@@ -32,11 +43,31 @@ const Login = () => {
         Swal.fire("Login failed with status:", response.status, "info");
       }
     } catch (error) {
-      Swal.fire("an error occured during the operation:", error, "error");
+      Swal.fire("An error occurred during the operation:", error, "error");
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const checkUserLogin = () => {
+      const userLoggedIn = JSON.parse(sessionStorage.getItem("user"));
+
+      if (userLoggedIn) {
+        if (userLoggedIn.role === "cashier") {
+          router.push("/cashier/");
+          return;
+        }
+
+        if (userLoggedIn.role === "admin") {
+          router.push("/admin/");
+          return;
+        }
+      }
+    };
+
+    checkUserLogin();
+  }, [router]);
 
   return (
     <div

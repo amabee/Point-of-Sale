@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { Dropdown, DropdownButton } from "react-bootstrap";
+import { Dropdown, DropdownButton, Form } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../../public/styles/pos-style.css";
@@ -79,6 +79,9 @@ const Pos2 = () => {
   const [selectedCol, setSelectedCol] = useState(0);
   const [itemRemoved, setItemRemoved] = useState(false);
   const [inputPin, setInputPin] = useState("");
+  const [paymentButtonEnabled, setPaymentButtonEnabled] = useState(false);
+  const [shouldUpdateTotal, setShouldUpdateTotal] = useState(true);
+  const [voidMsg, setVoidMsg] = useState("");
   const superVisorPin = "122099";
   const router = useRouter();
 
@@ -100,7 +103,7 @@ const Pos2 = () => {
       } else {
         setProduct({});
         setMsg("No Data");
-        console.log(respose.data);
+        console.log(response.data);
       }
     } catch (error) {
       console.error("Error fetching product data:", error);
@@ -174,6 +177,165 @@ const Pos2 = () => {
     }
   };
 
+  const fetchHeldItemsByCustomer = async (cuid) => {
+    const data = JSON.parse(sessionStorage.getItem("user"));
+    try {
+      const res = await axios.get(STORE_ENDPOINT, {
+        params: {
+          operation: "getHeldItemsFromCustomer",
+          json: JSON.stringify({
+            cashier_id: data.id,
+            customer_id: cuid,
+          }),
+        },
+      });
+
+      if (res.status === 200) {
+        if (res.data !== null && res.data.success) {
+          Swal.fire("Success", res.data.success, "success");
+
+          setShouldUpdateTotal(false);
+
+          const fetchedOrders = res.data.success;
+          const combinedOrders = [...orders, ...fetchedOrders];
+          setOrders(combinedOrders);
+
+          const newTotal = combinedOrders.reduce(
+            (acc, order) =>
+              acc +
+              (parseFloat(order.total_price) || parseFloat(order.amount) || 0),
+            0
+          );
+          setTotalAmount(newTotal);
+
+          setShouldUpdateTotal(true);
+          const hoid = res.data.success[0].held_order_id;
+          updateHeldItemsByCustomerStatus(hoid);
+
+          console.log("Data: ", res.data.success);
+        } else {
+          Swal.fire("Something went wrong!", res.data, "info");
+        }
+      } else {
+        Swal.fire("Status Error", res.status, "error");
+      }
+    } catch (error) {
+      Swal.fire("Error", error, "error");
+    }
+  };
+
+  const updateHeldItemsByCustomerStatus = async (hoid) => {
+    try {
+      const formData = new FormData();
+      formData.append("operation", "updateHeldItemsStatus");
+      formData.append(
+        "json",
+        JSON.stringify({
+          held_order_id: hoid,
+          status: "resumed",
+        })
+      );
+
+      const res = await axios({
+        url: STORE_ENDPOINT,
+        method: "POST",
+        data: formData,
+      });
+
+      if (res.status === 200) {
+        if (res.data !== null && res.data.success) {
+          Swal.fire("Succes", res.data.success, "success");
+        } else {
+          Swal.fire("Something went wrong", res.data, "error");
+          console.log(res.data);
+        }
+      } else {
+        Swal.fire("Status Error", res.status, "info");
+      }
+    } catch (error) {
+      Swal.fire("Exception Error", error, "error");
+    }
+  };
+
+  const voidItem = async (pid) => {
+    const formData = new FormData();
+    formData.append("operation", "voidItem");
+    formData.append(
+      "json",
+      JSON.stringify({
+        cashier_id: currentUser.id,
+        product_id: pid,
+        void_reason: "Whatever reason that is",
+        void_date: Date.now(),
+      })
+    );
+
+    try {
+      const res = await axios({
+        url: STORE_ENDPOINT,
+        method: "POST",
+        data: formData,
+      });
+
+      if (res.status === 200) {
+        if (res.data !== null && res.data.success) {
+          setVoidMsg(res.data.success);
+          handleShowVoidModal();
+          pollVoidStatus(pid);
+          console.log(res.data);
+        } else {
+          Swal.fire("Something went wrong!", `${res.data}`, "error");
+          console.log(res.data);
+        }
+      } else {
+        Swal.fire("Status Error", `${res.status}`, "error");
+        console.log(res.data);
+      }
+    } catch (error) {
+      Swal.fire("Exception Error", `${error}`, "error");
+      console.log(res.data);
+    }
+  };
+
+  const pollVoidStatus = (id) => {
+    const interval = 5000;
+
+    const poll = async () => {
+      console.log(`Polling for product ID: ${id}`);
+
+      try {
+        const res = await axios.get(STORE_ENDPOINT, {
+          params: {
+            operation: "checkForItemVoidStatus",
+            json: JSON.stringify({
+              product_id: id,
+            }),
+          },
+        });
+
+        if (res.status === 200) {
+          if (res.data && res.data.status === "voided") {
+            console.log("Item has been voided");
+            removeSelectedItem();
+            handleCloseVoidModal();
+            Swal.fire("Success", "Item voided successfully!", "success");
+            return;
+          } else {
+            console.log(`Current status: ${res.data.status}`);
+          }
+        } else {
+          console.log("Status Error: ", res.status);
+        }
+      } catch (error) {
+        console.log("Exception Error: ", error);
+      }
+
+      setTimeout(poll, interval);
+    };
+
+    poll();
+  };
+
   const handleCustomerInput = (event) => {
     setCustomerID(event.target.value);
   };
@@ -185,7 +347,7 @@ const Pos2 = () => {
   const handlePinSubmit = () => {
     if (inputPin === superVisorPin) {
       removeSelectedItem();
-      setInputPin();
+      setInputPin("");
       handleCloseVoidModal();
     } else {
       Swal.fire({
@@ -207,6 +369,73 @@ const Pos2 = () => {
     }
   };
 
+  const completeTransaction = async (
+    totalAmount,
+    paidAmount,
+    changeAmount,
+    items
+  ) => {
+    try {
+      const formData = new FormData();
+      formData.append("operation", "insertTransactions");
+      formData.append(
+        "json",
+        JSON.stringify({
+          transaction_date: new Date().toISOString(),
+          cashier_id: currentUser.id,
+          total_amount: totalAmount,
+          paid_amount: paidAmount,
+          change_amount: changeAmount,
+          status: "completed",
+          transaction_items: items.map((item) => ({
+            product_id: item.id,
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: (item.quantity * item.price).toFixed(2),
+          })),
+        })
+      );
+
+      console.log(items);
+      items.map((item) => {
+        console.log(parseFloat(item.price));
+      });
+
+      const res = await axios({
+        url: STORE_ENDPOINT,
+        method: "POST",
+        data: formData,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (res.status === 200) {
+        if (res.data && res.data.success) {
+          Swal.fire("Success", res.data.success, "success");
+          setOrders([]);
+          setProduct(null);
+        } else {
+          Swal.fire(
+            "Something went wrong",
+            res.data.error || "Unknown error",
+            "error"
+          );
+        }
+      } else {
+        Swal.fire("Status Error", `Status code: ${res.status}`, "error");
+      }
+
+      console.log("Response:", res.data);
+    } catch (error) {
+      Swal.fire(
+        "Error completing transaction",
+        error.message || "Unknown error",
+        "error"
+      );
+    }
+  };
+
   useEffect(() => {
     const getAllCustomerID = async () => {
       try {
@@ -220,7 +449,6 @@ const Pos2 = () => {
         if (response.data && response.data.success) {
           setRetrievedIDs(response.data.success);
           setMsg("");
-          //console.log(response.data.success);
         } else {
           setRetrievedIDs([]);
           setMsg("No Data");
@@ -235,8 +463,14 @@ const Pos2 = () => {
   const handleCashChange = (e) => {
     const enteredCash = Number(e.target.value);
     setCash(enteredCash);
-    setTotalChange(enteredCash - totalAmount);
 
+    if (enteredCash < totalAmount) {
+      setTotalChange(0);
+      setPaymentButtonEnabled(true);
+    } else {
+      setTotalChange(enteredCash - totalAmount);
+      setPaymentButtonEnabled(false);
+    }
     if (enteredCash > totalAmount) {
       setTextColor({ color: "green" });
     }
@@ -301,7 +535,7 @@ const Pos2 = () => {
           };
           setOrders([...orders, newOrder]);
           setBarcode("");
-          setProduct({});
+          setProduct();
           setQuantity(1);
           quantityInputRef.current.focus();
         }
@@ -323,7 +557,6 @@ const Pos2 = () => {
 
   const handleF2Press = (e) => {
     if (e.key === "F2") {
-      //setPreviousSales(previousSales + totalAmount);
       setOrders([]);
       setTotalAmount(0);
     }
@@ -358,43 +591,38 @@ const Pos2 = () => {
       handleShowInputModal();
       return;
     }
+    if (e.ctrlKey && e.key === "p") {
+      e.preventDefault();
+      handleShowPaymentModal();
+      setPaymentButtonEnabled(true);
+      return;
+    }
 
     switch (e.key) {
-      // HELP
       case "F1":
         e.preventDefault();
         handleShow();
         break;
-
-      // NEW TRANSACTION
       case "F2":
         e.preventDefault();
         handleF2Press(e);
         break;
-
-      // SAVE ITEMS
       case "F3":
         e.preventDefault();
         handleShowCustomerIDInput();
         break;
-
-      // RETAKE SAVED ORDERS
       case "F4":
         e.preventDefault();
         handleShowHeldTransactions();
         break;
-
-      // PENDING SALES
       case "F6":
         e.preventDefault();
         restoreTransaction();
         break;
-
       case "F7":
         e.preventDefault();
         handleShowSavedCustomerPickerModal();
         break;
-
       case "Escape":
         e.preventDefault();
         handleEscKeyPress(e);
@@ -421,9 +649,16 @@ const Pos2 = () => {
   }, []);
 
   useEffect(() => {
-    const total = orders.reduce((acc, order) => acc + order.amount, 0);
-    setTotalAmount(total);
-  }, [orders]);
+    if (shouldUpdateTotal) {
+      const total = orders.reduce(
+        (acc, order) =>
+          acc +
+          (parseFloat(order.amount) || parseFloat(order.total_price) || 0),
+        0
+      );
+      setTotalAmount(total);
+    }
+  }, [orders, shouldUpdateTotal]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleFunctionsPress);
@@ -451,8 +686,10 @@ const Pos2 = () => {
             setSelectedCol((prev) => Math.min(3, prev + 1));
             break;
           case "v":
-            // removeSelectedItem();
-            handleShowVoidModal();
+            const selectedProduct = orders[selectedRow];
+            if (selectedProduct) {
+              voidItem(selectedProduct.id);
+            }
             break;
           default:
             return;
@@ -461,10 +698,9 @@ const Pos2 = () => {
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [orders, selectedRow, selectedCol]);
 
@@ -474,7 +710,6 @@ const Pos2 = () => {
     const newOrders = orders.filter((_, index) => index !== selectedRow);
     setOrders(newOrders);
 
-    // Adjust the selected row if necessary
     if (selectedRow >= newOrders.length) {
       setSelectedRow(Math.max(0, newOrders.length - 1));
     }
@@ -488,10 +723,6 @@ const Pos2 = () => {
       return () => clearTimeout(timer);
     }
   }, [itemRemoved]);
-
-  // if (loading) {
-  //   return <Loader></Loader>;
-  // }
 
   if (!currentUser) {
     return null;
@@ -589,6 +820,7 @@ const Pos2 = () => {
                         <table className="table table-striped table-hover">
                           <thead>
                             <tr>
+                              <th scope="col">ID</th>
                               <th scope="col">Item Name</th>
                               <th scope="col">Item Code</th>
                               <th scope="col">Quantity</th>
@@ -598,21 +830,25 @@ const Pos2 = () => {
                           <tbody>
                             {orders.map((order, rowIndex) => (
                               <tr key={rowIndex}>
-                                {["name", "barcode", "quantity", "price"].map(
-                                  (field, colIndex) => (
-                                    <td
-                                      key={colIndex}
-                                      className={
-                                        rowIndex === selectedRow &&
-                                        colIndex === selectedCol
-                                          ? "selected-cell"
-                                          : ""
-                                      }
-                                    >
-                                      {order[field]}
-                                    </td>
-                                  )
-                                )}
+                                {[
+                                  "id",
+                                  "name",
+                                  "barcode",
+                                  "quantity",
+                                  "price",
+                                ].map((field, colIndex) => (
+                                  <td
+                                    key={colIndex}
+                                    className={
+                                      rowIndex === selectedRow &&
+                                      colIndex === selectedCol
+                                        ? "selected-cell"
+                                        : ""
+                                    }
+                                  >
+                                    {order[field]}
+                                  </td>
+                                ))}
                               </tr>
                             ))}
                           </tbody>
@@ -945,10 +1181,21 @@ const Pos2 = () => {
 
               {/* Buttons */}
               <div className="d-flex justify-content-between align-items-center">
-                <button type="button" className="btn btn-secondary">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleClosePaymentModal}
+                >
                   Go back
                 </button>
-                <button type="button" className="btn btn-primary">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={paymentButtonEnabled}
+                  onClick={() =>
+                    completeTransaction(totalAmount, cash, totalChange, orders)
+                  }
+                >
                   Pay amount
                 </button>
               </div>
@@ -973,7 +1220,7 @@ const Pos2 = () => {
                 {retrievedIDs.map((item, index) => (
                   <Dropdown.Item
                     key={index}
-                    onClick={() => handleSelectCustomer(item.customer_id)}
+                    onClick={() => fetchHeldItemsByCustomer(item.customer_id)}
                   >
                     {item.customer_id}
                   </Dropdown.Item>
@@ -989,8 +1236,8 @@ const Pos2 = () => {
           animation={true}
           centered={true}
           show={showVoidModal}
-          handleClose={handleCloseVoidModal}
         >
+          <h3>{voidMsg}</h3>
           <div class="input-group mb-3">
             <div class="input-group-prepend">
               <span class="input-group-text" id="basic-addon3">
