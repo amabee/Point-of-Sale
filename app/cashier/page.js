@@ -71,6 +71,14 @@ const Pos2 = () => {
     setShowVoidModal,
     handleShowVoidModal,
     handleCloseVoidModal,
+    showReceiptModal,
+    setShowReceiptModal,
+    handleShowReceiptModal,
+    handleCloseReceiptModal,
+    showZReportModal,
+    setShowZReportModal,
+    handleShowZReportModal,
+    handleCloseZReportModal,
   } = usePosState();
 
   const [currentUser, setCurrentUser] = useState(null);
@@ -82,8 +90,13 @@ const Pos2 = () => {
   const [paymentButtonEnabled, setPaymentButtonEnabled] = useState(false);
   const [shouldUpdateTotal, setShouldUpdateTotal] = useState(true);
   const [voidMsg, setVoidMsg] = useState("");
+  const [receiptOrders, setReceiptOrders] = useState([]);
+  const [receiptTotal, setReceiptTotal] = useState(0);
   const superVisorPin = "122099";
   const router = useRouter();
+
+  const taxRate = 0.08;
+  const taxAmount = receiptTotal * taxRate;
 
   const getProductsFromAPI = async (barCode) => {
     try {
@@ -213,6 +226,7 @@ const Pos2 = () => {
           updateHeldItemsByCustomerStatus(hoid);
 
           console.log("Data: ", res.data.success);
+          console.log("Orders: ", combinedOrders);
         } else {
           Swal.fire("Something went wrong!", res.data, "info");
         }
@@ -281,11 +295,18 @@ const Pos2 = () => {
         if (res.data !== null && res.data.success) {
           setVoidMsg(res.data.success);
           handleShowVoidModal();
-          pollVoidStatus(pid);
-          console.log(res.data);
+          pollVoidStatus(pid, res.data.void_item_id);
+          console.log(res.data.void_item_id);
         } else {
-          Swal.fire("Something went wrong!", `${res.data}`, "error");
+          Swal.fire(
+            "Something went wrong!",
+            JSON.stringify(res.data.error),
+            "error"
+          );
           console.log(res.data);
+          for (let [key, value] of formData.entries()) {
+            console.log(`${key}: ${value}`);
+          }
         }
       } else {
         Swal.fire("Status Error", `${res.status}`, "error");
@@ -297,7 +318,7 @@ const Pos2 = () => {
     }
   };
 
-  const pollVoidStatus = (id) => {
+  const pollVoidStatus = (id, void_id) => {
     const interval = 5000;
 
     const poll = async () => {
@@ -309,6 +330,7 @@ const Pos2 = () => {
             operation: "checkForItemVoidStatus",
             json: JSON.stringify({
               product_id: id,
+              pid: void_id,
             }),
           },
         });
@@ -412,7 +434,11 @@ const Pos2 = () => {
 
       if (res.status === 200) {
         if (res.data && res.data.success) {
-          Swal.fire("Success", res.data.success, "success");
+          // Swal.fire("Success", res.data.success, "success");
+          handleClosePaymentModal();
+          handleShowReceiptModal();
+          setReceiptOrders(orders);
+          setReceiptTotal(totalAmount);
           setOrders([]);
           setProduct(null);
         } else {
@@ -598,6 +624,12 @@ const Pos2 = () => {
       return;
     }
 
+    if (e.ctrlKey && e.key === "z") {
+      e.preventDefault();
+      handleShowZReportModal();
+      return;
+    }
+
     switch (e.key) {
       case "F1":
         e.preventDefault();
@@ -688,7 +720,13 @@ const Pos2 = () => {
           case "v":
             const selectedProduct = orders[selectedRow];
             if (selectedProduct) {
-              voidItem(selectedProduct.id);
+              const productId =
+                selectedProduct.id || selectedProduct.product_id;
+              if (productId) {
+                voidItem(productId);
+              } else {
+                console.log("No valid ID found in selectedProduct.");
+              }
             }
             break;
           default:
@@ -846,7 +884,9 @@ const Pos2 = () => {
                                         : ""
                                     }
                                   >
-                                    {order[field]}
+                                    {field === "id"
+                                      ? order["id"] || order["product_id"]
+                                      : order[field]}
                                   </td>
                                 ))}
                               </tr>
@@ -1231,6 +1271,7 @@ const Pos2 = () => {
             )}
           </div>
         </InformationModal>
+        {/* VOID MODAL */}
         <InformationModal
           title="Item Void"
           animation={true}
@@ -1261,6 +1302,121 @@ const Pos2 = () => {
           >
             Submit
           </button>
+        </InformationModal>
+        {/* RECEIPT MODAL */}
+        <InformationModal
+          title="Receipt Modal"
+          handleClose={handleCloseReceiptModal}
+          show={showReceiptModal}
+        >
+          <div className="receipt">
+            <h2>Robinsons Galleria</h2>
+            <p>123 Main Street, Biringan City, State 12345</p>
+            <p>Phone: (123) 456-7890</p>
+
+            <hr />
+
+            <table className="table table-striped table-bordered">
+              <thead className="thead-dark">
+                <tr>
+                  <th>Item</th>
+                  <th>Quantity</th>
+                  <th>Price</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {receiptOrders.map((order, index) => (
+                  <tr key={index}>
+                    <td>{order.name}</td>
+                    <td>{order.quantity}</td>
+                    <td>₱{order.price}</td>
+                    <td>₱{order.price * order.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <hr />
+
+            <div className="total">
+              <p>
+                <strong>Subtotal:</strong> ₱{receiptTotal}.00
+              </p>
+              <p>
+                <strong>Tax (8%):</strong> ₱{receiptTotal * taxRate}
+              </p>
+              <p>
+                <strong>Total:</strong> ₱{receiptTotal + taxAmount}
+              </p>
+            </div>
+
+            <p className="thank-you">Thank you for your purchase!</p>
+          </div>
+        </InformationModal>
+        {/* Z-REPORT */}
+        <InformationModal
+          title="Z Report"
+          handleClose={handleCloseZReportModal}
+          show={showZReportModal}
+        >
+          <div className="container-fluid">
+            <h2 className="text-center mb-4">Z Report</h2>
+            <div className="row">
+              <div className="col-md-8 offset-md-2">
+                <table className="table table-bordered">
+                  <tbody>
+                    <tr>
+                      <th scope="row">Cashier Name:</th>
+                      <td>[Cashier Name]</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Date:</th>
+                      <td>{new Date().toLocaleDateString()}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Time:</th>
+                      <td>{new Date().toLocaleTimeString()}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Total Sales:</th>
+                      <td>$1000.00</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Cash Sales:</th>
+                      <td>$600.00</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Card Sales:</th>
+                      <td>$400.00</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Total Refunds:</th>
+                      <td>$50.00</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Net Sales:</th>
+                      <td>$950.00</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Total Tax:</th>
+                      <td>$95.00</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="row mt-4">
+              <div className="col-md-8 offset-md-2">
+                <button
+                  className="btn btn-primary w-100"
+                  onClick={handleCloseZReportModal}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         </InformationModal>
         ;
       </div>

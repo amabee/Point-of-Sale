@@ -70,15 +70,15 @@ const Admin = () => {
         } else {
           Swal(
             "Something went wrong fetching current sales",
-            `${res.data}`,
+            `${res.data.error}`,
             "error"
           );
         }
       } else {
-        Swal("Status Error", `${res.status}`, "error");
+        Swal.fire("Status Error", `${res.status}`, "error");
       }
     } catch (error) {
-      Swal("Exception Error", `${error}`, "error");
+      Swal.fire("Exception Error", `${error}`, "error");
     }
   };
 
@@ -93,8 +93,6 @@ const Admin = () => {
 
       if (res.status === 200) {
         if (res.data !== null && res.data.success) {
-          // Swal.fire("Success", `${res.data.success}`, "success");
-          // console.log(res.data.success);
           setCashiersTransactions(res.data.success);
         } else {
           Swal.fire("Something went wrong", res.data.error, "error");
@@ -121,14 +119,19 @@ const Admin = () => {
         if (res.data !== null && res.data.success) {
           setTotalOrder(res.data.success);
         } else {
-          Swal.fire("Something went wrong", res.data.error, "error");
-          console.log(res.data.error);
+          Swal.fire(
+            "No current sales found",
+            "Current sales: " + `${JSON.stringify(res.data.success)}`,
+            "info"
+          );
+          setTotalOrder(0);
+          console.log("Error: ", res.data);
         }
       } else {
         Swal.fire("Status Error", `${res.status}`, "error");
       }
     } catch (error) {
-      Swal.fire("Exception Error", `${error}`, "error");
+      Swal.fire("Exception Errors", `${error}`, "error");
     }
   };
 
@@ -153,7 +156,7 @@ const Admin = () => {
         Swal.fire("Status Error", `${res.status}`, "error");
       }
     } catch (error) {
-      Swal.fire("Exception Error", `${error}`, "error");
+      Swal.fire("Exception Errors", `${error}`, "error");
     }
   };
 
@@ -178,7 +181,7 @@ const Admin = () => {
         Swal.fire("Status Error", "Response Status: " + res.status, "error");
       }
     } catch (error) {
-      Swal.fire("Exceptio Error", `${error}`, "error");
+      Swal.fire("Exception Error", `${error}`, "error");
     }
   };
 

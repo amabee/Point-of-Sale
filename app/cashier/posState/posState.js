@@ -38,6 +38,16 @@ const usePosState = () => {
   const handleCloseSavedCustomerPickerModal = () =>
     setShowSavedCustomerPickerModal(false);
 
+  // RECIEPT MODAL
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const handleShowReceiptModal = () => setShowReceiptModal(true);
+  const handleCloseReceiptModal = () => setShowReceiptModal(false);
+
+  // Z-REPORT
+  const [showZReportModal, setShowZReportModal] = useState(false);
+  const handleShowZReportModal = () => setShowZReportModal(true);
+  const handleCloseZReportModal = () => setShowZReportModal(false);
+
   // POS FUNCTIONS
   const [barcode, setBarcode] = useState(1);
   const [product, setProduct] = useState({});
@@ -117,6 +127,14 @@ const usePosState = () => {
     setShowVoidModal,
     handleShowVoidModal,
     handleCloseVoidModal,
+    showReceiptModal,
+    setShowReceiptModal,
+    handleShowReceiptModal,
+    handleCloseReceiptModal,
+    showZReportModal,
+    setShowZReportModal,
+    handleShowZReportModal,
+    handleCloseZReportModal,
   };
 };
 

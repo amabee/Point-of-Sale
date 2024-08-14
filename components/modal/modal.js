@@ -9,6 +9,7 @@ const InformationModal = ({
   className,
   centered,
   animation,
+  order,
 }) => {
   return (
     <Modal
