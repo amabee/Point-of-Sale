@@ -10,6 +10,7 @@ import usePosState from "./posState/posState";
 import Swal from "sweetalert2";
 import { useRouter, redirect } from "next/navigation";
 import { STORE_CASHIER_IMAGE, STORE_ENDPOINT } from "../globals";
+import BarcodeScanner from "./BarcodeScanner/barcode_scanner";
 
 const Pos2 = () => {
   const {
@@ -95,6 +96,8 @@ const Pos2 = () => {
   const [zReportData, setZReportData] = useState([]);
   const superVisorPin = "122099";
   const router = useRouter();
+
+  const [showScanner, setShowScanner] = useState(true);
 
   const taxRate = 0.08;
   const taxAmount = receiptTotal * taxRate;
@@ -191,6 +194,13 @@ const Pos2 = () => {
     } catch (error) {
       console.error("Error fetching held items:", error);
     }
+  };
+
+  const handleBarcodeDetected = (result) => {
+    setBarcode(result);
+    getProductsFromAPI(result);
+    setShowScanner(false);
+    console.log(result);
   };
 
   const fetchHeldItemsByCustomer = async (cuid) => {
@@ -556,6 +566,7 @@ const Pos2 = () => {
     setBarcode(enteredBarcode);
     if (enteredBarcode) {
       getProductsFromAPI(enteredBarcode);
+      handleClose();
     } else {
       setProduct({});
       setMsg("Please enter a barcode");
@@ -875,6 +886,7 @@ const Pos2 = () => {
                               HELD TRANSACTION {heldTransactions.length}
                             </span>
                           </button>
+                          <BarcodeScanner onDetected={handleBarcodeDetected} />
                         </div>
                       </div>
                     </div>
@@ -1108,6 +1120,7 @@ const Pos2 = () => {
                 value={barcode}
                 onChange={handleBarcodeChange}
                 autoFocus={true}
+                onKeyPress={handleEnterKeyPress}
               ></input>
             </div>
           </div>
