@@ -92,11 +92,14 @@ const Pos2 = () => {
   const [voidMsg, setVoidMsg] = useState("");
   const [receiptOrders, setReceiptOrders] = useState([]);
   const [receiptTotal, setReceiptTotal] = useState(0);
+  const [zReportData, setZReportData] = useState([]);
   const superVisorPin = "122099";
   const router = useRouter();
 
   const taxRate = 0.08;
   const taxAmount = receiptTotal * taxRate;
+  const totalTaxAmout = totalAmount * taxRate;
+  const finalTotal = totalAmount + totalTaxAmout;
 
   const getProductsFromAPI = async (barCode) => {
     try {
@@ -271,7 +274,7 @@ const Pos2 = () => {
     }
   };
 
-  const voidItem = async (pid) => {
+  const voidItem = async (pid, amount) => {
     const formData = new FormData();
     formData.append("operation", "voidItem");
     formData.append(
@@ -279,6 +282,7 @@ const Pos2 = () => {
       JSON.stringify({
         cashier_id: currentUser.id,
         product_id: pid,
+        amount: amount,
         void_reason: "Whatever reason that is",
         void_date: Date.now(),
       })
@@ -410,7 +414,7 @@ const Pos2 = () => {
           change_amount: changeAmount,
           status: "completed",
           transaction_items: items.map((item) => ({
-            product_id: item.id,
+            product_id: item.id ? item.id : item.product_id,
             quantity: item.quantity,
             price: item.price,
             subtotal: (item.quantity * item.price).toFixed(2),
@@ -447,6 +451,10 @@ const Pos2 = () => {
             res.data.error || "Unknown error",
             "error"
           );
+
+          formData.forEach((value, key) => {
+            console.log(`${key}: ${value}`);
+          });
         }
       } else {
         Swal.fire("Status Error", `Status code: ${res.status}`, "error");
@@ -459,6 +467,39 @@ const Pos2 = () => {
         error.message || "Unknown error",
         "error"
       );
+    }
+  };
+
+  const getZReport = async () => {
+    const user = JSON.parse(sessionStorage.getItem("user"));
+    try {
+      const res = await axios.get(STORE_ENDPOINT, {
+        params: {
+          operation: "getMyTotalSales",
+          json: JSON.stringify({
+            cashier_id: user.id,
+            cashier_id: user.id,
+          }),
+        },
+      });
+
+      if (res.status === 200) {
+        if (res.data !== null) {
+          setZReportData(res.data);
+          console.log(res.data);
+        } else {
+          Swal.fire(
+            "Something went wrong fetching Zreport",
+            JSON.stringify(res.data),
+            "error"
+          );
+          console.log(res.data);
+        }
+      } else {
+        Swal.fire("Status Error at getZReport", `{res.status}`, "error");
+      }
+    } catch (error) {
+      Swal.fire("Exception Error at getZReport", `{error}`, "error");
     }
   };
 
@@ -678,6 +719,7 @@ const Pos2 = () => {
 
   useEffect(() => {
     fetchHeldItems();
+    getZReport();
   }, []);
 
   useEffect(() => {
@@ -715,15 +757,19 @@ const Pos2 = () => {
             setSelectedCol((prev) => Math.max(0, prev - 1));
             break;
           case "arrowright":
-            setSelectedCol((prev) => Math.min(3, prev + 1));
+            setSelectedCol((prev) => Math.min(4, prev + 1)); // Adjust to number of columns
             break;
           case "v":
             const selectedProduct = orders[selectedRow];
             if (selectedProduct) {
               const productId =
                 selectedProduct.id || selectedProduct.product_id;
+              const quantity = selectedProduct.quantity || 0;
+              const price = selectedProduct.price || 0;
+              const total = quantity * price;
+
               if (productId) {
-                voidItem(productId);
+                voidItem(productId, total);
               } else {
                 console.log("No valid ID found in selectedProduct.");
               }
@@ -786,7 +832,7 @@ const Pos2 = () => {
                 />
               </div>
               <div className="col-auto">
-                <h1 className="card-title m-0">Total: {totalAmount}.00</h1>
+                <h1 className="card-title m-0">Total: {finalTotal}.00</h1>
               </div>
             </div>
 
@@ -863,34 +909,44 @@ const Pos2 = () => {
                               <th scope="col">Item Code</th>
                               <th scope="col">Quantity</th>
                               <th scope="col">Price</th>
+                              <th scope="col">Total</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {orders.map((order, rowIndex) => (
-                              <tr key={rowIndex}>
-                                {[
-                                  "id",
-                                  "name",
-                                  "barcode",
-                                  "quantity",
-                                  "price",
-                                ].map((field, colIndex) => (
-                                  <td
-                                    key={colIndex}
-                                    className={
-                                      rowIndex === selectedRow &&
-                                      colIndex === selectedCol
-                                        ? "selected-cell"
-                                        : ""
-                                    }
-                                  >
-                                    {field === "id"
-                                      ? order["id"] || order["product_id"]
-                                      : order[field]}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
+                            {orders.map((order, rowIndex) => {
+                              const quantity = order.quantity || 0;
+                              const price = order.price || 0;
+                              const total = quantity * price;
+
+                              return (
+                                <tr key={rowIndex}>
+                                  {[
+                                    "id",
+                                    "name",
+                                    "barcode",
+                                    "quantity",
+                                    "price",
+                                    total,
+                                  ].map((field, colIndex) => (
+                                    <td
+                                      key={colIndex}
+                                      className={
+                                        rowIndex === selectedRow &&
+                                        colIndex === selectedCol
+                                          ? "selected-cell"
+                                          : ""
+                                      }
+                                    >
+                                      {field === "id"
+                                        ? order["id"] || order["product_id"]
+                                        : field === total
+                                        ? `₱${total.toFixed(2)}`
+                                        : order[field]}
+                                    </td>
+                                  ))}
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -1161,7 +1217,7 @@ const Pos2 = () => {
                     ₱
                   </span>
                   <span className="amount" style={{ fontSize: "20px" }}>
-                    {totalAmount}.00
+                    {totalAmount + totalTaxAmout}.00
                   </span>
                 </div>
               </div>
@@ -1368,39 +1424,38 @@ const Pos2 = () => {
                   <tbody>
                     <tr>
                       <th scope="row">Cashier Name:</th>
-                      <td>[Cashier Name]</td>
+                      <td>{currentUser.username}</td>
                     </tr>
                     <tr>
                       <th scope="row">Date:</th>
                       <td>{new Date().toLocaleDateString()}</td>
                     </tr>
                     <tr>
-                      <th scope="row">Time:</th>
+                      <th scope="row">Shift:</th>
                       <td>{new Date().toLocaleTimeString()}</td>
                     </tr>
                     <tr>
                       <th scope="row">Total Sales:</th>
-                      <td>$1000.00</td>
+                      <td>₱{parseFloat(zReportData.total_sales).toFixed(2)}</td>
                     </tr>
                     <tr>
-                      <th scope="row">Cash Sales:</th>
-                      <td>$600.00</td>
+                      <th scope="row">Total Void:</th>
+                      <td>₱{parseFloat(zReportData.total_voids).toFixed(2)}</td>
                     </tr>
-                    <tr>
-                      <th scope="row">Card Sales:</th>
-                      <td>$400.00</td>
-                    </tr>
-                    <tr>
-                      <th scope="row">Total Refunds:</th>
-                      <td>$50.00</td>
-                    </tr>
+
                     <tr>
                       <th scope="row">Net Sales:</th>
-                      <td>$950.00</td>
+                      <td>₱{parseFloat(zReportData.net_sales).toFixed(2)}</td>
                     </tr>
                     <tr>
                       <th scope="row">Total Tax:</th>
-                      <td>$95.00</td>
+                      <td>
+                        ₱
+                        {(
+                          parseFloat(zReportData.net_sales) *
+                          parseFloat(taxRate)
+                        ).toFixed(2)}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
